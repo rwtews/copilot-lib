@@ -14,7 +14,7 @@ Incluye un CLI en Node.js para instalar y actualizar agentes, instrucciones y sk
 Clona el repositorio y enlázalo localmente:
 
 ```bash
-git clone https://github.com/tu-usuario/copilot-agents.git
+git clone https://github.com/rwtews/copilot-lib.git
 cd copilot-agents
 npm install
 npm link
