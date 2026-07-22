@@ -8,7 +8,13 @@
   },
   "scripts": {
     "start": "node bin/copilot-agents.js",
-    "test": "node --test"
+    "test": "node --test",
+    "copilot:list": "npx copilot-agents list",
+    "copilot:list:global": "npx copilot-agents list --global",
+    "copilot:install": "npx copilot-agents install",
+    "copilot:install:global": "npx copilot-agents install --global",
+    "copilot:update": "npx copilot-agents update",
+    "copilot:update:global": "npx copilot-agents update --global"
   },
   "keywords": [
     "github-copilot",
