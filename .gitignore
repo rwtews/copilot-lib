@@ -1,0 +1,14 @@
+# Archivos generados por el CLI durante pruebas o uso local
+.copilot-agents.json
+.github/agents/
+.github/*.instructions.md
+
+# Dependencias
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Entornos
+.env

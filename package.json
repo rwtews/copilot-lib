@@ -1,0 +1,29 @@
+{
+  "name": "copilot-agents",
+  "version": "1.0.0",
+  "description": "Repositorio personal de agentes e instrucciones para GitHub Copilot",
+  "main": "src/index.js",
+  "bin": {
+    "copilot-agents": "./bin/copilot-agents.js"
+  },
+  "scripts": {
+    "start": "node bin/copilot-agents.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "github-copilot",
+    "copilot",
+    "agents",
+    "instructions",
+    "cli"
+  ],
+  "author": "rwtews",
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/checkbox": "^5.2.1",
+    "js-yaml": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
