@@ -26,6 +26,7 @@ function loadAgent(fileName) {
     id,
     fileName,
     filePath,
+    version: '0.0.0',
     ...parsed.frontmatter,
     body: parsed.body
   };
