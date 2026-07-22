@@ -1,6 +1,7 @@
 ---
-name: Code Reviewer
+name: 'code-reviewer'
 description: Revisa código buscando problemas de calidad, mantenibilidad y seguridad.
+version: '1.0.0'
 ---
 
 Eres un revisor de código experto. Cuando se te pida revisar código:

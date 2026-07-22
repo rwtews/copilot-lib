@@ -5,6 +5,7 @@ const { Separator } = require('@inquirer/checkbox');
 const { getAvailableAgents, loadAgent, getAgentBody } = require('../utils/agents');
 const { getAvailableInstructions, loadInstruction } = require('../utils/instructions');
 const { getAvailableSkills, loadSkill, getSkillBody } = require('../utils/skills');
+const { readManifest, writeManifest, setResourceVersion, getResourceVersion } = require('../utils/manifest');
 const {
   getWorkspaceAgentsDir,
   getWorkspaceDir,
@@ -19,13 +20,14 @@ const {
 
 async function install(args) {
   const isGlobal = args.includes('--global');
+  const force = args.includes('--force');
   const forceAgent = args.includes('--agent') || args.includes('--agents');
   const forceInstruction = args.includes('--instructions') || args.includes('--instruction');
   const forceSkill = args.includes('--skill') || args.includes('--skills');
   const resourceId = args.find(arg => !arg.startsWith('--'));
 
   if (resourceId) {
-    return installResource(resourceId, isGlobal, forceAgent, forceInstruction, forceSkill);
+    return installResource(resourceId, isGlobal, forceAgent, forceInstruction, forceSkill, force);
   }
 
   const agents = getAvailableAgents();
@@ -59,7 +61,7 @@ async function install(args) {
   const manifestPath = isGlobal ? getGlobalManifestPath() : getWorkspaceManifestPath();
   const manifest = readManifest(manifestPath);
 
-  const choices = buildChoices(agents, instructions, skills, manifest);
+  const choices = buildChoices(agents, instructions, skills, manifest, isGlobal);
 
   let selected;
   try {
@@ -85,16 +87,16 @@ async function install(args) {
 
   for (const item of selected) {
     if (item.type === 'agent') {
-      installAgent(item.id, isGlobal);
+      installAgent(item.id, isGlobal, force);
     } else if (item.type === 'instruction') {
-      installInstruction(item.id, isGlobal);
+      installInstruction(item.id, isGlobal, force);
     } else {
-      installSkill(item.id, isGlobal);
+      installSkill(item.id, isGlobal, force);
     }
   }
 }
 
-function buildChoices(agents, instructions, skills, manifest) {
+function buildChoices(agents, instructions, skills, manifest, isGlobal) {
   const choices = [];
 
   if (agents.length > 0) {
@@ -102,7 +104,7 @@ function buildChoices(agents, instructions, skills, manifest) {
     choices.push(...agents.map(agent => ({
       name: `${agent.id} (${agent.name || agent.id}) - ${agent.description}`,
       value: { type: 'agent', id: agent.id },
-      checked: manifest.agents.includes(agent.id)
+      checked: isAgentInstalled(agent.id, isGlobal)
     })));
   }
 
@@ -111,7 +113,7 @@ function buildChoices(agents, instructions, skills, manifest) {
     choices.push(...instructions.map(inst => ({
       name: `${inst.id} (${inst.name}) - ${inst.description}`,
       value: { type: 'instruction', id: inst.id },
-      checked: (manifest.instructions || []).includes(inst.id)
+      checked: isInstructionInstalled(inst.id, isGlobal)
     })));
   }
 
@@ -120,26 +122,26 @@ function buildChoices(agents, instructions, skills, manifest) {
     choices.push(...skills.map(skill => ({
       name: `${skill.id} (${skill.name || skill.id}) - ${skill.description}`,
       value: { type: 'skill', id: skill.id },
-      checked: (manifest.skills || []).includes(skill.id)
+      checked: isSkillInstalled(skill.id, isGlobal)
     })));
   }
 
   return choices;
 }
 
-function installResource(id, isGlobal, forceAgent, forceInstruction, forceSkill) {
+function installResource(id, isGlobal, forceAgent, forceInstruction, forceSkill, force) {
   const isAgent = getAvailableAgents().some(a => a.id === id);
   const isInstruction = getAvailableInstructions().some(i => i.id === id);
   const isSkill = getAvailableSkills().some(s => s.id === id);
 
   if (forceAgent) {
-    return installAgent(id, isGlobal);
+    return installAgent(id, isGlobal, force);
   }
   if (forceInstruction) {
-    return installInstruction(id, isGlobal);
+    return installInstruction(id, isGlobal, force);
   }
   if (forceSkill) {
-    return installSkill(id, isGlobal);
+    return installSkill(id, isGlobal, force);
   }
 
   const matches = [isAgent && 'agente', isInstruction && 'instrucción', isSkill && 'skill'].filter(Boolean);
@@ -148,20 +150,20 @@ function installResource(id, isGlobal, forceAgent, forceInstruction, forceSkill)
     process.exit(1);
   }
   if (isAgent) {
-    return installAgent(id, isGlobal);
+    return installAgent(id, isGlobal, force);
   }
   if (isInstruction) {
-    return installInstruction(id, isGlobal);
+    return installInstruction(id, isGlobal, force);
   }
   if (isSkill) {
-    return installSkill(id, isGlobal);
+    return installSkill(id, isGlobal, force);
   }
 
   console.error(`Error: no se encontró el recurso "${id}".`);
   process.exit(1);
 }
 
-function installAgent(agentId, isGlobal) {
+function installAgent(agentId, isGlobal, force) {
   const agent = loadAgent(`${agentId}.agent.md`);
   if (!agent) {
     console.error(`Error: no se encontró el agente "${agentId}".`);
@@ -179,23 +181,25 @@ function installAgent(agentId, isGlobal) {
   const manifestPath = isGlobal ? getGlobalManifestPath() : getWorkspaceManifestPath();
 
   const manifest = readManifest(manifestPath);
-  if (manifest.agents.includes(agent.id)) {
-    console.log(`El agente "${agentId}" ya está instalado. Usa "copilot-agents update" para refrescarlo.`);
+  const installedVersion = getResourceVersion(manifest, 'agents', agent.id);
+
+  if (fs.existsSync(targetPath) && installedVersion === agent.version && !force) {
+    console.log(`El agente "${agentId}" ya está instalado en la versión ${installedVersion}. Usa "copilot-agents update" para refrescarlo o "--force" para reinstalarlo.`);
     return;
   }
 
   ensureDir(targetDir);
   fs.copyFileSync(agent.filePath, targetPath);
 
-  manifest.agents.push(agent.id);
-  manifest.updatedAt = new Date().toISOString();
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  setResourceVersion(manifest, 'agents', agent.id, agent.version);
+  writeManifest(manifestPath, manifest);
 
-  console.log(`Agente "${agentId}" instalado ${isGlobal ? 'globalmente' : 'en el workspace'}.`);
+  const action = installedVersion === agent.version ? 'reinstalado' : 'instalado';
+  console.log(`Agente "${agentId}" ${action} ${isGlobal ? 'globalmente' : 'en el workspace'} (v${agent.version}).`);
 }
 
-function installInstruction(instructionId, isGlobal) {
-  const instruction = loadInstruction(`${instructionId}.instructions.md`);
+function installInstruction(instructionId, isGlobal, force) {
+  const instruction = loadInstruction(`${instructionId}-instructions.md`);
   if (!instruction) {
     console.error(`Error: no se encontró la instrucción "${instructionId}".`);
     process.exit(1);
@@ -206,23 +210,24 @@ function installInstruction(instructionId, isGlobal) {
   const manifestPath = isGlobal ? getGlobalManifestPath() : getWorkspaceManifestPath();
 
   const manifest = readManifest(manifestPath);
-  if (!manifest.instructions) manifest.instructions = [];
-  if (manifest.instructions.includes(instruction.id)) {
-    console.log(`La instrucción "${instructionId}" ya está instalada. Usa "copilot-agents update-instructions" para refrescarla.`);
+  const installedVersion = getResourceVersion(manifest, 'instructions', instruction.id);
+
+  if (fs.existsSync(targetPath) && installedVersion === instruction.version && !force) {
+    console.log(`La instrucción "${instructionId}" ya está instalada en la versión ${installedVersion}. Usa "copilot-agents update" para refrescarla o "--force" para reinstalarla.`);
     return;
   }
 
   ensureDir(targetDir);
   fs.copyFileSync(instruction.filePath, targetPath);
 
-  manifest.instructions.push(instruction.id);
-  manifest.updatedAt = new Date().toISOString();
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  setResourceVersion(manifest, 'instructions', instruction.id, instruction.version);
+  writeManifest(manifestPath, manifest);
 
-  console.log(`Instrucción "${instructionId}" instalada ${isGlobal ? 'globalmente' : 'en el workspace'}.`);
+  const action = installedVersion === instruction.version ? 'reinstalada' : 'instalada';
+  console.log(`Instrucción "${instructionId}" ${action} ${isGlobal ? 'globalmente' : 'en el workspace'} (v${instruction.version}).`);
 }
 
-function installSkill(skillId, isGlobal) {
+function installSkill(skillId, isGlobal, force) {
   const skill = loadSkill(skillId);
   if (!skill) {
     console.error(`Error: no se encontró el skill "${skillId}".`);
@@ -240,34 +245,36 @@ function installSkill(skillId, isGlobal) {
   const manifestPath = isGlobal ? getGlobalManifestPath() : getWorkspaceManifestPath();
 
   const manifest = readManifest(manifestPath);
-  if (!manifest.skills) manifest.skills = [];
-  if (manifest.skills.includes(skill.id)) {
-    console.log(`El skill "${skillId}" ya está instalado. Usa "copilot-agents update" para refrescarlo.`);
+  const installedVersion = getResourceVersion(manifest, 'skills', skill.id);
+
+  if (fs.existsSync(targetDir) && installedVersion === skill.version && !force) {
+    console.log(`El skill "${skillId}" ya está instalado en la versión ${installedVersion}. Usa "copilot-agents update" para refrescarlo o "--force" para reinstalarlo.`);
     return;
   }
 
   ensureDir(targetRoot);
   fs.cpSync(skill.dirPath, targetDir, { recursive: true, force: true });
 
-  manifest.skills.push(skill.id);
-  manifest.updatedAt = new Date().toISOString();
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  setResourceVersion(manifest, 'skills', skill.id, skill.version);
+  writeManifest(manifestPath, manifest);
 
-  console.log(`Skill "${skillId}" instalado ${isGlobal ? 'globalmente' : 'en el workspace'}.`);
+  const action = installedVersion === skill.version ? 'reinstalado' : 'instalado';
+  console.log(`Skill "${skillId}" ${action} ${isGlobal ? 'globalmente' : 'en el workspace'} (v${skill.version}).`);
 }
 
-function readManifest(manifestPath) {
-  if (!fs.existsSync(manifestPath)) return { agents: [], instructions: [], skills: [] };
-  try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    return {
-      agents: manifest.agents || [],
-      instructions: manifest.instructions || [],
-      skills: manifest.skills || []
-    };
-  } catch (err) {
-    return { agents: [], instructions: [], skills: [] };
-  }
+function isAgentInstalled(agentId, isGlobal) {
+  const targetDir = isGlobal ? getGlobalAgentsDir() : getWorkspaceAgentsDir();
+  return fs.existsSync(path.join(targetDir, `${agentId}.agent.md`));
+}
+
+function isInstructionInstalled(instructionId, isGlobal) {
+  const targetDir = isGlobal ? getGlobalDir() : getWorkspaceDir();
+  return fs.existsSync(path.join(targetDir, `${instructionId}-instructions.md`));
+}
+
+function isSkillInstalled(skillId, isGlobal) {
+  const targetRoot = isGlobal ? getGlobalSkillsDir() : getWorkspaceSkillsDir();
+  return fs.existsSync(path.join(targetRoot, skillId));
 }
 
 module.exports = { install };

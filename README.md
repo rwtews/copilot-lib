@@ -31,13 +31,16 @@ npx copilot-agents list
 ### Listar recursos disponibles
 
 ```bash
-# Agentes
+# Todos los recursos
 copilot-agents list
 
-# Instrucciones
+# Solo agentes
+copilot-agents list --agent
+
+# Solo instrucciones
 copilot-agents list --instructions
 
-# Skills
+# Solo skills
 copilot-agents list --skills
 
 # Instalados (agentes, instrucciones y skills)
@@ -95,6 +98,30 @@ copilot-agents update --skill
 
 El comando `update` sincroniza los archivos a partir del manifiesto local (`.copilot-agents.json` o `~/.copilot-agents.json`). Si eliminas un recurso del manifiesto, `update` también lo borra de la carpeta destino.
 
+`update` compara la versión indicada en el frontmatter del recurso (`version`) con la versión guardada en el manifiesto. Si coinciden, el recurso se omite; si difieren, se copia la nueva versión y se actualiza el manifiesto. Para forzar la copia aunque las versiones sean iguales, usa `--force`.
+
+```bash
+copilot-agents update --force
+copilot-agents update --agent --force
+```
+
+El manifiesto guarda la versión de cada recurso instalado:
+
+```json
+{
+  "agents": {
+    "api-architect": { "version": "1.0.0" }
+  },
+  "instructions": {
+    "copilot": { "version": "1.0.0" }
+  },
+  "skills": {
+    "code-reviewer": { "version": "1.0.0" }
+  },
+  "updatedAt": "2026-07-22T12:00:00.000Z"
+}
+```
+
 ## Formato de un agente
 
 Cada agente es un archivo Markdown en `src/data/agents/<nombre>.agent.md` con YAML frontmatter:
@@ -103,6 +130,7 @@ Cada agente es un archivo Markdown en `src/data/agents/<nombre>.agent.md` con YA
 ---
 name: React Expert
 description: Agente especializado en componentes React con TypeScript.
+version: 1.0.0
 ---
 
 Cuando generes código React, sigue estas reglas:
@@ -113,18 +141,23 @@ Cuando generes código React, sigue estas reglas:
 
 Propiedades del frontmatter:
 
-| Propiedad     | Requerida | Descripción                                       |
-|---------------|-----------|---------------------------------------------------|
-| `name`        | No        | Nombre visible del agente.                        |
-| `description` | Sí        | Descripción que aparece al listar.                |
-| `model`       | No        | Modelo de IA a usar.                              |
-| `tools`       | No        | Array de herramientas disponibles para el agente. |
+| Propiedad     | Requerida | Descripción                                                           |
+|---------------|-----------|-----------------------------------------------------------------------|
+| `name`        | Sí        | Nombre visible del agente.                                            |
+| `description` | Sí        | Descripción que aparece al listar.                                    |
+| `version`     | Sí        | Versión del agente. Se usa para decidir si `update` debe refrescarlo. |
+| `model`       | No        | Modelo de IA a usar.                                                  |
+| `tools`       | No        | Array de herramientas disponibles para el agente.                     |
 
 ## Formato de una instrucción
 
-Cada instrucción es un archivo Markdown en `src/data/instructions/<nombre>.instructions.md`:
+Cada instrucción es un archivo Markdown en `src/data/instructions/<nombre>-instructions.md`:
 
 ```markdown
+---
+version: 1.0.0
+---
+
 # Coding Standards
 
 Cuando escribas código, sigue estas reglas:
@@ -133,7 +166,7 @@ Cuando escribas código, sigue estas reglas:
 - Escribe tests para cada función pública.
 ```
 
-> Nota: GitHub Copilot reconoce los archivos de instrucciones con la extensión `.instructions.md` (con punto, no guion). El CLI usa ese formato para garantizar la compatibilidad.
+> Nota: GitHub Copilot reconoce los archivos de instrucciones con el sufijo `-instructions.md`. El CLI usa ese formato para garantizar la compatibilidad.
 
 ## Formato de un skill
 
@@ -143,6 +176,7 @@ Cada skill es un directorio en `src/data/skills/<nombre>/` que contiene al menos
 ---
 name: Code Reviewer
 description: Revisa código buscando problemas de calidad, mantenibilidad y seguridad.
+version: 1.0.0
 ---
 
 Eres un revisor de código experto. Cuando se te pida revisar código:
@@ -167,7 +201,7 @@ copilot-agents install my-agent
 
 ### Nueva instrucción
 
-1. Crea `src/data/instructions/my-rules.instructions.md` con las reglas en Markdown.
+1. Crea `src/data/instructions/my-rules-instructions.md` con las reglas en Markdown.
 2. Prueba:
 
 ```bash
@@ -199,8 +233,8 @@ copilot-agents/
 │   │   │   ├── react-expert.agent.md
 │   │   │   └── python-expert.agent.md
 │   │   ├── instructions/
-│   │   │   ├── coding.instructions.md
-│   │   │   └── review.instructions.md
+│   │   │   ├── coding-instructions.md
+│   │   │   └── review-instructions.md
 │   │   └── skills/
 │   │       └── code-reviewer/
 │   │           └── SKILL.md

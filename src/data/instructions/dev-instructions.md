@@ -1,5 +1,6 @@
 ---
 applyTo: '**'
+version: '1.0.0'
 ---
 
 # GitHub Copilot Custom Instructions

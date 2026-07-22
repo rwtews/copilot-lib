@@ -30,9 +30,10 @@ function printHelp() {
   console.log(`copilot-agents v${version}
 
 Uso:
-  copilot-agents list                         Lista los agentes disponibles
-  copilot-agents list --instructions          Lista las instrucciones disponibles
-  copilot-agents list --skills                Lista los skills disponibles
+  copilot-agents list                         Lista agentes, instrucciones y skills disponibles
+  copilot-agents list --agent                 Lista solo los agentes disponibles
+  copilot-agents list --instructions          Lista solo las instrucciones disponibles
+  copilot-agents list --skills                Lista solo los skills disponibles
   copilot-agents list --installed             Lista agentes, instrucciones y skills instalados
   copilot-agents install                      Selecciona e instala agentes, instrucciones y skills interactivamente
   copilot-agents install <id>                 Instala un recurso en el workspace
@@ -40,11 +41,13 @@ Uso:
   copilot-agents install <id> --agent         Instala un agente directamente
   copilot-agents install <id> --instructions  Instala una instrucción directamente
   copilot-agents install <id> --skill         Instala un skill directamente
+  copilot-agents install <id> --force         Reinstala aunque sea la misma versión
   copilot-agents update                       Actualiza agentes, instrucciones y skills del workspace
   copilot-agents update --global              Actualiza agentes, instrucciones y skills globales
   copilot-agents update --agent               Actualiza solo agentes
   copilot-agents update --instructions        Actualiza solo instrucciones
   copilot-agents update --skill               Actualiza solo skills
+  copilot-agents update --force               Actualiza aunque sea la misma versión
   copilot-agents help                         Muestra esta ayuda
 
 En el workspace, los agentes se instalan en .github/agents/, las instrucciones en .github/ y los skills en .github/skills/.

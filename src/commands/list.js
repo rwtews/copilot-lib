@@ -1,16 +1,22 @@
-const fs = require('fs');
 const { getAvailableAgents } = require('../utils/agents');
 const { getAvailableInstructions } = require('../utils/instructions');
 const { getAvailableSkills } = require('../utils/skills');
+const { readManifest, getResourceVersion } = require('../utils/manifest');
 const { getWorkspaceManifestPath, getGlobalManifestPath } = require('../utils/paths');
 
 function list(args) {
   const installed = args.includes('--installed');
+  const agents = args.includes('--agent') || args.includes('--agents');
   const instructions = args.includes('--instructions');
   const skills = args.includes('--skills');
 
   if (installed) {
     printInstalled();
+    return;
+  }
+
+  if (agents) {
+    printAgents();
     return;
   }
 
@@ -24,7 +30,47 @@ function list(args) {
     return;
   }
 
-  printAgents();
+  printAll();
+}
+
+function printAll() {
+  const agents = getAvailableAgents();
+  const instructions = getAvailableInstructions();
+  const skills = getAvailableSkills();
+
+  if (agents.length === 0 && instructions.length === 0 && skills.length === 0) {
+    console.log('No hay recursos disponibles.');
+    return;
+  }
+
+  if (agents.length > 0) {
+    console.log('Agentes disponibles:');
+    agents.forEach(agent => {
+      const name = agent.name || agent.id;
+      console.log(`  - ${agent.id} (${name}) v${agent.version}: ${agent.description}`);
+    });
+  } else {
+    console.log('No hay agentes disponibles en agents/.');
+  }
+
+  if (instructions.length > 0) {
+    console.log('\nInstrucciones disponibles:');
+    instructions.forEach(inst => {
+      console.log(`  - ${inst.id} (${inst.name}) v${inst.version}: ${inst.description}`);
+    });
+  } else {
+    console.log('\nNo hay instrucciones disponibles en instructions/.');
+  }
+
+  if (skills.length > 0) {
+    console.log('\nSkills disponibles:');
+    skills.forEach(skill => {
+      const name = skill.name || skill.id;
+      console.log(`  - ${skill.id} (${name}) v${skill.version}: ${skill.description}`);
+    });
+  } else {
+    console.log('\nNo hay skills disponibles en skills/.');
+  }
 }
 
 function printInstalled() {
@@ -32,28 +78,48 @@ function printInstalled() {
   const globalManifest = readManifest(getGlobalManifestPath());
 
   console.log('Agentes instalados en workspace:');
-  if (!wsManifest.agents || wsManifest.agents.length === 0) console.log('  (ninguno)');
-  else wsManifest.agents.forEach(id => console.log(`  - ${id}`));
+  const wsAgents = Object.keys(wsManifest.agents || {});
+  if (wsAgents.length === 0) console.log('  (ninguno)');
+  else wsAgents.forEach(id => console.log(`  - ${id} v${getResourceVersion(wsManifest, 'agents', id)}`));
 
   console.log('\nInstrucciones instaladas en workspace:');
-  if (!wsManifest.instructions || wsManifest.instructions.length === 0) console.log('  (ninguna)');
-  else wsManifest.instructions.forEach(id => console.log(`  - ${id}`));
+  const wsInstructions = Object.keys(wsManifest.instructions || {});
+  if (wsInstructions.length === 0) console.log('  (ninguna)');
+  else wsInstructions.forEach(id => console.log(`  - ${id} v${getResourceVersion(wsManifest, 'instructions', id)}`));
 
   console.log('\nSkills instalados en workspace:');
-  if (!wsManifest.skills || wsManifest.skills.length === 0) console.log('  (ninguno)');
-  else wsManifest.skills.forEach(id => console.log(`  - ${id}`));
+  const wsSkills = Object.keys(wsManifest.skills || {});
+  if (wsSkills.length === 0) console.log('  (ninguno)');
+  else wsSkills.forEach(id => console.log(`  - ${id} v${getResourceVersion(wsManifest, 'skills', id)}`));
 
   console.log('\nAgentes instalados globalmente:');
-  if (!globalManifest.agents || globalManifest.agents.length === 0) console.log('  (ninguno)');
-  else globalManifest.agents.forEach(id => console.log(`  - ${id}`));
+  const globalAgents = Object.keys(globalManifest.agents || {});
+  if (globalAgents.length === 0) console.log('  (ninguno)');
+  else globalAgents.forEach(id => console.log(`  - ${id} v${getResourceVersion(globalManifest, 'agents', id)}`));
 
   console.log('\nInstrucciones instaladas globalmente:');
-  if (!globalManifest.instructions || globalManifest.instructions.length === 0) console.log('  (ninguna)');
-  else globalManifest.instructions.forEach(id => console.log(`  - ${id}`));
+  const globalInstructions = Object.keys(globalManifest.instructions || {});
+  if (globalInstructions.length === 0) console.log('  (ninguna)');
+  else globalInstructions.forEach(id => console.log(`  - ${id} v${getResourceVersion(globalManifest, 'instructions', id)}`));
 
   console.log('\nSkills instalados globalmente:');
-  if (!globalManifest.skills || globalManifest.skills.length === 0) console.log('  (ninguno)');
-  else globalManifest.skills.forEach(id => console.log(`  - ${id}`));
+  const globalSkills = Object.keys(globalManifest.skills || {});
+  if (globalSkills.length === 0) console.log('  (ninguno)');
+  else globalSkills.forEach(id => console.log(`  - ${id} v${getResourceVersion(globalManifest, 'skills', id)}`));
+}
+
+function printAgents() {
+  const availableAgents = getAvailableAgents();
+  if (availableAgents.length === 0) {
+    console.log('No hay agentes disponibles en agents/.');
+    return;
+  }
+
+  console.log('Agentes disponibles:');
+  availableAgents.forEach(agent => {
+    const name = agent.name || agent.id;
+    console.log(`  - ${agent.id} (${name}) v${agent.version}: ${agent.description}`);
+  });
 }
 
 function printInstructions() {
@@ -65,7 +131,7 @@ function printInstructions() {
 
   console.log('Instrucciones disponibles:');
   availableInstructions.forEach(inst => {
-    console.log(`  - ${inst.id} (${inst.name}): ${inst.description}`);
+    console.log(`  - ${inst.id} (${inst.name}) v${inst.version}: ${inst.description}`);
   });
 }
 
@@ -79,31 +145,8 @@ function printSkills() {
   console.log('Skills disponibles:');
   availableSkills.forEach(skill => {
     const name = skill.name || skill.id;
-    console.log(`  - ${skill.id} (${name}): ${skill.description}`);
+    console.log(`  - ${skill.id} (${name}) v${skill.version}: ${skill.description}`);
   });
-}
-
-function printAgents() {
-  const agents = getAvailableAgents();
-  if (agents.length === 0) {
-    console.log('No hay agentes disponibles en agents/.');
-    return;
-  }
-
-  console.log('Agentes disponibles:');
-  agents.forEach(agent => {
-    const name = agent.name || agent.id;
-    console.log(`  - ${agent.id} (${name}): ${agent.description}`);
-  });
-}
-
-function readManifest(manifestPath) {
-  if (!fs.existsSync(manifestPath)) return { agents: [], instructions: [], skills: [] };
-  try {
-    return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  } catch (err) {
-    return { agents: [], instructions: [], skills: [] };
-  }
 }
 
 module.exports = { list };

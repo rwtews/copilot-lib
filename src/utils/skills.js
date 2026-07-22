@@ -34,6 +34,7 @@ function loadSkill(dirName) {
     dirPath,
     filePath,
     fileName: SKILL_FILE,
+    version: '0.0.0',
     ...parsed.frontmatter,
     body: parsed.body
   };
